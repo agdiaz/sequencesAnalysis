@@ -1,0 +1,6 @@
+nextflow
+.nextflow.log*
+.nextflow/
+work/
+results/
+pipeline.png*
