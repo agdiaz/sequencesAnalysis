@@ -8,27 +8,36 @@ flowchart TD
     p6[b2bToolsAnalysis:predictBiophysicalFeatures]
     p7[b2bToolsAnalysis:plotBiophysicalFeatures]
     p8[b2bToolsAnalysis:plotAgmata]
-    p9([collect])
-    p10([collect])
-    p11([collect])
-    p12[compressPredictions]
-    p13(( ))
+    p9([splitFasta])
+    p10([filter])
+    p11[fetchStructure]
+    p12([collect])
+    p13([collect])
+    p14([collect])
+    p15([collect])
+    p16[compressPredictions]
+    p17(( ))
     p0 -->|allSequences| p1
     p1 -->|sequencesGrouped| p6
     p0 -->|allSequences| p2
     p2 -->|multipleSequenceAlignment| p3
     p3 -->|tree| p4
-    p4 -->|tree_plot| p12
+    p4 -->|treePlot| p16
     p2 -->|multipleSequenceAlignment| p5
-    p5 -->|logo| p12
+    p5 -->|logo| p16
     p6 -->|predictions| p7
-    p7 -->|plots| p10
+    p7 -->|plots| p13
     p6 -->|predictions| p8
-    p8 -->|agmata_plots| p11
-    p6 -->|predictions| p9
-    p9 --> p12
-    p10 --> p12
-    p11 --> p12
-    p2 -->|multipleSequenceAlignment| p12
-    p3 -->|tree| p12
-    p12 --> p13
+    p8 -->|agmata_plots| p14
+    p0 -->|allSequences| p9
+    p9 --> p10
+    p10 --> p11
+    p11 --> p15
+    p6 -->|predictions| p12
+    p12 --> p16
+    p13 --> p16
+    p14 --> p16
+    p15 --> p16
+    p2 -->|multipleSequenceAlignment| p16
+    p3 -->|tree| p16
+    p16 --> p17

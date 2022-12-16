@@ -53,7 +53,7 @@ process renderTree {
     path tree
 
     output:
-    path "tree.png", emit: tree_plot
+    path "tree.png", emit: treePlot
 
     script:
     """
@@ -249,6 +249,21 @@ process plotAgmata {
     """
 }
 
+process fetchStructure {
+    tag "$id"
+
+    input:
+    tuple val(id), val(sequence)
+
+    output:
+    path "*.pdb", emit: pdbStructures
+
+    script:
+    """
+    curl -X POST --data "$sequence" https://api.esmatlas.com/foldSequence/v1/pdb/ > ${id}.pdb
+    """
+}
+
 process compressPredictions {
     publishDir "results", mode: 'copy'
 
@@ -259,15 +274,17 @@ process compressPredictions {
 
     path multipleSequenceAlignment
     path tree
-    path tree_plot
+    path treePlot
     path logo
+
+    path pdbStructures
 
     output:
     path "*.tar.gz"
 
     script:
     """
-    tar -czvhf ${multipleSequenceAlignment.simpleName}.tar.gz $tree $tree_plot $multipleSequenceAlignment $logo $predictions $plots $agmata_plots
+    tar -czvhf ${multipleSequenceAlignment.simpleName}.tar.gz $tree $treePlot $multipleSequenceAlignment $logo $predictions $plots $agmata_plots $pdbStructures
     """
 }
 
@@ -285,7 +302,7 @@ workflow multipleSequenceAlignmentAnalysis {
     emit:
     multipleSequenceAlignment = createMultipleSequenceAlignment.out.multipleSequenceAlignment
     tree = buildPhilogeneticTree.out.tree
-    tree_plot = renderTree.out.tree_plot
+    treePlot = renderTree.out.treePlot
     logo = buildLogo.out.logo
 }
 
@@ -305,18 +322,24 @@ workflow b2bToolsAnalysis {
 }
 
 workflow {
+    // First sub-workflow
     multipleSequenceAlignmentAnalysis(allSequences)
-
+    // Second sub-workflow
     b2bToolsAnalysis(sequencesGrouped)
 
+    // Third sub-workflow
+    fetchStructure(allSequences.splitFasta(record: [id: true, seqString: true ]).filter { record -> record.seqString.length() < 400 })
+
+    // Main workflow
     compressPredictions(
         b2bToolsAnalysis.out.predictions.collect(),
         b2bToolsAnalysis.out.plots.collect(),
         b2bToolsAnalysis.out.agmata_plots.collect(),
         multipleSequenceAlignmentAnalysis.out.multipleSequenceAlignment,
         multipleSequenceAlignmentAnalysis.out.tree,
-        multipleSequenceAlignmentAnalysis.out.tree_plot,
-        multipleSequenceAlignmentAnalysis.out.logo
+        multipleSequenceAlignmentAnalysis.out.treePlot,
+        multipleSequenceAlignmentAnalysis.out.logo,
+        fetchStructure.out.pdbStructures.collect()
     )
 }
 
