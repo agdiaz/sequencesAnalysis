@@ -1,0 +1,34 @@
+flowchart TD
+    p0((Channel.fromPath))
+    p1([splitFasta])
+    p2[multipleSequenceAlignmentAnalysis:createMultipleSequenceAlignment]
+    p3[multipleSequenceAlignmentAnalysis:buildPhilogeneticTree]
+    p4[multipleSequenceAlignmentAnalysis:renderTree]
+    p5[multipleSequenceAlignmentAnalysis:buildLogo]
+    p6[b2bToolsAnalysis:predictBiophysicalFeatures]
+    p7[b2bToolsAnalysis:plotBiophysicalFeatures]
+    p8[b2bToolsAnalysis:plotAgmata]
+    p9([collect])
+    p10([collect])
+    p11([collect])
+    p12[compressPredictions]
+    p13(( ))
+    p0 -->|allSequences| p1
+    p1 -->|sequencesGrouped| p6
+    p0 -->|allSequences| p2
+    p2 -->|multipleSequenceAlignment| p3
+    p3 -->|tree| p4
+    p4 -->|tree_plot| p12
+    p2 -->|multipleSequenceAlignment| p5
+    p5 -->|logo| p12
+    p6 -->|predictions| p7
+    p7 -->|plots| p10
+    p6 -->|predictions| p8
+    p8 -->|agmata_plots| p11
+    p6 -->|predictions| p9
+    p9 --> p12
+    p10 --> p12
+    p11 --> p12
+    p2 -->|multipleSequenceAlignment| p12
+    p3 -->|tree| p12
+    p12 --> p13
