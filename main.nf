@@ -122,7 +122,7 @@ process compressPredictions {
 
     script:
     """
-    tar -czvf ${multipleSequenceAlignment.simpleName}.tar.gz $tree $tree_plot $multipleSequenceAlignment $predictions $plots
+    tar -czvhf ${multipleSequenceAlignment.simpleName}.tar.gz $tree $tree_plot $multipleSequenceAlignment $predictions $plots
     """
 }
 
