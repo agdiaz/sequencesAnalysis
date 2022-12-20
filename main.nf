@@ -84,7 +84,15 @@ process predictBiophysicalFeatures {
 
     script:
     """
-    python -m b2bTools -agmata -dynamine -disomine -efoldmine -file $sequences -output ${sequences}.json -identifier bio2byte
+    #!/usr/local/bin/python
+    from b2bTools import SingleSeq
+    import json
+
+    single_seq = SingleSeq("$sequences")
+    single_seq.predict(tools=['dynamine', 'efoldmine', 'disomine', 'agmata', 'psp'])
+
+    all_predictions = single_seq.get_all_predictions()
+    json.dump(all_predictions, open('b2b_results_${sequences.baseName}.json', 'w'), indent=4, sort_keys=True)
     """
 }
 
