@@ -2,7 +2,7 @@
 // USAGE: nextflow run main.nf -resume -with-dag pipeline.png
 
 params.targetSequences = "$launchDir/input_small.fasta"
-params.groupBy = 10
+params.groupBy = 1000
 
 allSequences = Channel.fromPath(params.targetSequences)
 
@@ -84,7 +84,7 @@ process predictBiophysicalFeatures {
 
     script:
     """
-    python -m b2bTools -agmata -dynamine -disomine -efoldmine -file $sequences -output ${sequences}.json -identifier test
+    python -m b2bTools -agmata -dynamine -disomine -efoldmine -file $sequences -output ${sequences}.json -identifier bio2byte
     """
 }
 
@@ -269,22 +269,22 @@ process compressPredictions {
 
     input:
     path predictions
-    path plots
-    path agmata_plots
+    // path plots
+    // path agmata_plots
 
-    path multipleSequenceAlignment
-    path tree
-    path treePlot
-    path logo
+    // path multipleSequenceAlignment
+    // path tree
+    // path treePlot
+    // path logo
 
-    path pdbStructures
+    // path pdbStructures
 
     output:
     path "*.tar.gz"
 
     script:
     """
-    tar -czvhf ${multipleSequenceAlignment.simpleName}.tar.gz $tree $treePlot $multipleSequenceAlignment $logo $predictions $plots $agmata_plots $pdbStructures
+    tar -czvhf b2b_results.tar.gz $predictions
     """
 }
 
@@ -312,34 +312,34 @@ workflow b2bToolsAnalysis {
 
     main:
     predictBiophysicalFeatures(sequencesGrouped)
-    plotBiophysicalFeatures(predictBiophysicalFeatures.out.predictions)
-    plotAgmata(predictBiophysicalFeatures.out.predictions)
+    // plotBiophysicalFeatures(predictBiophysicalFeatures.out.predictions)
+    // plotAgmata(predictBiophysicalFeatures.out.predictions)
 
     emit:
     predictions = predictBiophysicalFeatures.out.predictions
-    plots = plotBiophysicalFeatures.out.plots
-    agmata_plots = plotAgmata.out.plots
+    // plots = plotBiophysicalFeatures.out.plots
+    // agmata_plots = plotAgmata.out.plots
 }
 
 workflow {
     // First sub-workflow
-    multipleSequenceAlignmentAnalysis(allSequences)
+    // multipleSequenceAlignmentAnalysis(allSequences)
     // Second sub-workflow
     b2bToolsAnalysis(sequencesGrouped)
 
     // Third sub-workflow
-    fetchStructure(allSequences.splitFasta(record: [id: true, seqString: true ]).filter { record -> record.seqString.length() < 400 })
+    // fetchStructure(allSequences.splitFasta(record: [id: true, seqString: true ]).filter { record -> record.seqString.length() < 400 })
 
     // Main workflow
     compressPredictions(
         b2bToolsAnalysis.out.predictions.collect(),
-        b2bToolsAnalysis.out.plots.collect(),
-        b2bToolsAnalysis.out.agmata_plots.collect(),
-        multipleSequenceAlignmentAnalysis.out.multipleSequenceAlignment,
-        multipleSequenceAlignmentAnalysis.out.tree,
-        multipleSequenceAlignmentAnalysis.out.treePlot,
-        multipleSequenceAlignmentAnalysis.out.logo,
-        fetchStructure.out.pdbStructures.collect()
+        // b2bToolsAnalysis.out.plots.collect(),
+        // b2bToolsAnalysis.out.agmata_plots.collect(),
+        // multipleSequenceAlignmentAnalysis.out.multipleSequenceAlignment,
+        // multipleSequenceAlignmentAnalysis.out.tree,
+        // multipleSequenceAlignmentAnalysis.out.treePlot,
+        // multipleSequenceAlignmentAnalysis.out.logo,
+        // fetchStructure.out.pdbStructures.collect()
     )
 }
 
