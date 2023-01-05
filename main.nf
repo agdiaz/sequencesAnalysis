@@ -2,11 +2,20 @@
 // USAGE: nextflow run main.nf -resume -with-dag pipeline.png
 
 params.targetSequences = "$launchDir/input_small.fasta"
-params.groupBy = 1000
+params.groupBy = 100
 
+targetSequencesFile = file(params.targetSequences)
 allSequences = Channel.fromPath(params.targetSequences)
 
-sequencesGrouped = allSequences.splitFasta( by: params.groupBy, file: true )
+sequencesFiltered = allSequences
+    .splitFasta( record: [id: true, seqString: true, sequence: true ])
+    .filter { record -> record.seqString.size() >= 5 && record.seqString.size() < 2000 }
+
+sequencesGrouped = sequencesFiltered
+    .collectFile(name: "${targetSequencesFile.baseName}.fasta", newLine: true) {
+        item -> '>' + item.id + '\n' + item.sequence + '\n'
+    }
+    .splitFasta( file: true, by: params.groupBy )
 
 process createMultipleSequenceAlignment {
     input:
@@ -81,18 +90,54 @@ process predictBiophysicalFeatures {
 
     output:
     path '*.json', emit: predictions
+    path '*.index', emit: index
 
     script:
     """
-    #!/usr/local/bin/python
-    from b2bTools import SingleSeq
-    import json
+#!/usr/local/bin/python
+from b2bTools import SingleSeq
+import json
 
-    single_seq = SingleSeq("$sequences")
-    single_seq.predict(tools=['dynamine', 'efoldmine', 'disomine', 'agmata'])
+def average(lst):
+    return sum(lst) / len(lst)
 
-    all_predictions = single_seq.get_all_predictions()
-    json.dump(all_predictions, open('b2b_results_${sequences.baseName}.json', 'w'), indent=4, sort_keys=True)
+single_seq = SingleSeq("$sequences")
+single_seq.predict(tools=['dynamine', 'efoldmine', 'disomine', 'agmata'])
+
+all_predictions = single_seq.get_all_predictions()
+json.dump(all_predictions, open('b2b_results_${sequences.baseName}.json', 'w'), indent=2)
+
+with open('b2b_results_${sequences.baseName}.index', 'w') as index_file:
+    index_file.write("id,json_file,residues_count,avg_backbone,avg_coil,avg_disoMine,avg_earlyFolding,avg_helix,avg_ppII,avg_sheet,avg_sidechain\\n")
+
+    for sequence_key in all_predictions.keys():
+        prediction = all_predictions[sequence_key]
+
+        seq_len = len(prediction['seq'])
+        avg_backbone = average(prediction['backbone'])
+        avg_coil = average(prediction['coil'])
+        avg_disoMine = average(prediction['disoMine'])
+        avg_earlyFolding = average(prediction['earlyFolding'])
+        avg_helix = average(prediction['helix'])
+        avg_ppII = average(prediction['ppII'])
+        avg_sheet = average(prediction['sheet'])
+        avg_sidechain = average(prediction['sidechain'])
+
+        index_line = "{0},b2b_results_${sequences.baseName}.json,{1},{2:.3f},{3:.3f},{4:.3f},{5:.3f},{6:.3f},{7:.3f},{8:.3f},{9:.3f}\\n".format(
+            sequence_key,
+            seq_len,
+            avg_backbone,
+            avg_coil,
+            avg_disoMine,
+            avg_earlyFolding,
+            avg_helix,
+            avg_ppII,
+            avg_sheet,
+            avg_sidechain
+        )
+
+        index_file.write(index_line)
+
     """
 }
 
@@ -277,6 +322,7 @@ process compressPredictions {
 
     input:
     path predictions
+    path indexFile
     // path plots
     // path agmata_plots
 
@@ -292,7 +338,7 @@ process compressPredictions {
 
     script:
     """
-    tar -czvhf b2b_results.tar.gz $predictions
+    tar -czvhf b2b_results.tar.gz $predictions $indexFile
     """
 }
 
@@ -320,11 +366,13 @@ workflow b2bToolsAnalysis {
 
     main:
     predictBiophysicalFeatures(sequencesGrouped)
+
     // plotBiophysicalFeatures(predictBiophysicalFeatures.out.predictions)
     // plotAgmata(predictBiophysicalFeatures.out.predictions)
 
     emit:
     predictions = predictBiophysicalFeatures.out.predictions
+    indexes = predictBiophysicalFeatures.out.index
     // plots = plotBiophysicalFeatures.out.plots
     // agmata_plots = plotAgmata.out.plots
 }
@@ -341,6 +389,7 @@ workflow {
     // Main workflow
     compressPredictions(
         b2bToolsAnalysis.out.predictions.collect(),
+        b2bToolsAnalysis.out.indexes.collectFile(name: "${targetSequencesFile.baseName}.index", keepHeader: true)
         // b2bToolsAnalysis.out.plots.collect(),
         // b2bToolsAnalysis.out.agmata_plots.collect(),
         // multipleSequenceAlignmentAnalysis.out.multipleSequenceAlignment,
